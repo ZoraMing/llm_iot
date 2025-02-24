@@ -1,2 +1,41 @@
-# llm_iot
-使用llm接入iot系统进行更智能话调用
+# llm驱动的iot项目
+
+地址：https://github.com/ZoraMing/llm_iot
+
+创建虚拟环境
+
+```bash
+# python3.11
+python3.11 -m venv .venv_iot
+pip install -r requirements.txt
+```
+
+
+项目结构：
+
+```
+README.md
+requirements.txt
+.gitignore
+.venv_iot/..
+home_server/
+            app.py
+            config.py
+            device_server.py
+            tmeplate/
+                    indexVue.html
+mqtt_device/
+            __init__.py
+            config.py
+            device_app.py
+static/
+        img/
+            设备流程甘特图.png
+
+
+```
+- 前端    indexVue.html
+- 服务端  home_server.py
+- 设备端  device_server.py
+
+![设备流程图](static/img/设备流程甘特图.png)

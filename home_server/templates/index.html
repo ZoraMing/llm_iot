@@ -1,0 +1,191 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IoT Device Control</title>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <style>
+        .device-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px;
+            width: 300px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .online { background-color: #4CAF50; }
+        .offline { background-color: #f44336; }
+    </style>
+</head>
+<body>
+    <input type="button" id="send-button" value="Send Message">
+    <h1>Device Control Panel</h1>
+    <div id="device-list"></div>
+
+    <hr>
+    
+
+
+</body>
+<script>
+    const socket = io();
+
+    // 双向通讯
+    // 发送 前->后 按钮点击事件
+    document.getElementById('send-button').addEventListener('click', function() {
+        // 向前端发送自定义事件和数据
+        socket.emit('click_event', {'data': 'msg from front'})
+    });
+    // 监听 后->前 发送的消息
+    socket.on("my_response", function(data) {
+        console.log("Received message:", data);
+    });
+    // 监听 后->前 发送的消息
+    socket.on("back_connect",function(data){
+        console.log("back_connect:",data);
+    });
+
+
+    socket.on("connect", function() {
+        // console.log("Connected to server");
+    });
+
+    // 初始化设备列表
+    socket.on("device_init", function(data) {
+        console.log(data);
+        Object.keys(data).forEach(dev_id => {
+            createDeviceCard(dev_id,data[dev_id]);
+        });
+    });
+
+    // 实时更新设备状态
+    socket.on("update_device_status", function(data) {
+        console.log(data);
+        Object.keys(data).forEach(dev_id => {
+        updateDeviceStatus(dev_id, data.type, data.status);
+        });
+    });
+
+    function createDeviceCard(device_id, info) {
+        let card = document.getElementById(device_id);
+        console.log(device_id,info);
+        if (!card) {
+            card = document.createElement("div");
+            card.id = device_id;
+            card.className = "device-card";
+            switch (info.type) {
+                case "switch":
+                    card.innerHTML = `
+                        <h3>${info.name}</h3>
+                        <p>Type: ${info.type}</p>
+                        <div id="status-${device_id}">
+                            <span class="status-indicator ${info.status.is_working == "on" ? "online" : "offline"}"></span>
+                            Status: ${info.status.is_working}
+                        </div>
+                        <button onclick="sendCommand('${device_id}', '${info.type}', 'toggle', '${info.status.is_working == "on" ? "off" : "on"}')">Toggle</button>
+                        `;
+                        break;
+                        // ${getControlHtml(info.status.type, device_id)}
+                case "servo":
+                    card.innerHTML = `
+                        <h3>${info.name}</h3>
+                        <p>Type: ${info.type}</p>
+                        <div id="status-${device_id}">
+                            <span class="status-indicator ${info.status.is_working == "on" ? "online" : "offline"}"></span>
+                            Status: ${info.status.is_working}
+                        </div>
+                        <button onclick="sendCommand('${device_id}', '${info.type}','toggle','${info.status.is_working == "on"?"off":"on"}')">Toggle</button>
+  
+                        <div>
+                            <input type="range" min="0" max="180" id="${device_id}_slider">
+                            <span id="${device_id}_value">0</span>
+                            <button onclick="sendCommand('${device_id}', '${info.type}', 'set_angle', document.getElementById('${device_id}_slider').value">Change</button>
+                        </div>    
+                        `;
+                        setupSliderValueUpdate(device_id+'_slider', device_id+'_value');
+                    break;
+            }
+            document.getElementById("device-list").appendChild(card);
+        }
+    }
+
+    function setupSliderValueUpdate(sliderId, valueSpanId) {
+        const slider = document.getElementById(sliderId);
+        const valueSpan = document.getElementById(valueSpanId);
+        if (slider && valueSpan) {
+            slider.addEventListener('input', function () {
+                const currentValue = this.value;
+                valueSpan.textContent = currentValue;
+            });
+        }
+    }
+    
+
+    // function getStatusHtml(info) {
+    //     if (info.type === "servo") {
+    //         return `Angle: ${info.status.angle}°`;
+    //     }
+    //     return `Status: ${info.status}`;
+    // }
+
+    // function getControlHtml(device_type, device_id) {
+    //     if (device_type === "servo") {
+    //         return `
+    //             <input type="range" min="0" max="180" 
+    //                    oninput="sendCommand('${device_id}', 'set_angle', {angle: this.value})">
+    //             <button onclick="sendCommand('${device_id}', '${device_type}','set_angle','stop')">Stop</button>
+    //         `;
+    //     }
+    //     return `
+    //         <button onclick="sendCommand('${device_id}', '${device_type}','toggle',''on')">Toggle</button>
+    //     `;
+    // }
+
+    function updateDeviceStatus(device_id,device_type,status) {
+        const statusDiv = document.querySelector(`#status-${device_id}`);
+        if (statusDiv) {
+            // 更新状态指示器
+            const indicator = statusDiv.querySelector(".status-indicator");
+            // 更新具体状态信息
+            switch(device_id){
+                case "switch":
+                    indicator.className = `status-indicator ${status.is_working == "on"? "online" : "offline"}`;
+                    break;
+                case "servo":
+                    indicator.className = `status-indicator ${status.is_working == "on"? "online" : "offline"}`;
+                    if (status.angle !== undefined) {
+                        statusDiv.innerHTML = `
+                            <span class="status-indicator ${status.is_working =="on" ? "online" : "offline"}"></span>
+                            Angle: ${status.angle}°
+                        `;
+                    }
+                    break;
+            }
+        }
+    }
+
+    function sendCommand(device_id,device_type ,command = {}, params = {}) {
+        fetch("/api/control", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                device_id: device_id,
+                device_type: device_type,
+                command: command,
+                params: params
+            })
+        }).then(response => {
+            if (!response.ok) {
+                console.error("Command failed:", response.status);
+            }
+        });
+    }
+</script>
+</html>

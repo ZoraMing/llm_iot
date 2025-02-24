@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Device Control</title>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <!-- <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script> -->
+    <script src="https://unpkg.com/vue@3.2.36/dist/vue.global.prod.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f9f9f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .app-container {
+            max-width: 90%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            background-color: #ffffff;
+            /* 增强阴影效果 */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .device-card {
+            border: 1px solid #e8e8e8;
+            border-radius: 12px;
+            padding: 20px;
+            /* 增加卡片间的间距 */
+            margin: 12px;
+            /* 适当增加卡片宽度 */
+            width: 320px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+            /* 添加过渡效果 */
+            transition: transform 0.2s ease-in-out;
+        }
+
+        /* 鼠标悬停在设备卡片上的效果 */
+        .device-card:hover {
+            transform: translateY(-2px);
+            /* 卡片上移 */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 标题样式，作用于设备卡片内的 h3 元素 */
+        .device-card h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        /* 段落样式，作用于设备卡片内的 p 元素 */
+        .device-card p {
+            margin: 8px 0;
+            color: #666;
+        }
+
+        .status-indicator {
+            width: 18px;
+            /* 增大指示器大小 */
+            height: 18px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 12px;
+            /* 增加右侧间距 */
+        }
+
+        /* 在线状态指示器颜色 */
+        .online {
+            background-color: #2ecc71;
+            /* 调整颜色使其更鲜艳 */
+        }
+
+        /* 离线状态指示器颜色 */
+        .offline {
+            background-color: #e74c3c;
+            /* 调整颜色使其更鲜艳 */
+        }
+
+        /* 按钮样式，作用于设备卡片内的 button 元素 */
+        .device-card button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            background-color: #71b2dd;
+            /* 按钮背景颜色 */
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            /* 添加过渡效果 */
+            margin-top: 4px;
+        }
+
+        /* 鼠标悬停在按钮上的效果 */
+        .device-card button:hover {
+            background-color: #5f99c0;
+            /* 按钮背景颜色加深 */
+        }
+
+        /* 并排布局下拉框和按钮 */
+        .select-button-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        /* 下拉框和输入范围样式，作用于设备卡片内的 select 和 input[type="range"] 元素 */
+        .device-card select,
+        .device-card input[type="range"] {
+            width: 80%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        /* 下拉框和输入范围聚焦时的样式 */
+        .device-card select:focus,
+        .device-card input[type="range"]:focus {
+            outline: none;
+            border-color: #3498db;
+            /* 聚焦时边框颜色 */
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+            /* 聚焦时的阴影效果 */
+        }
+
+        /* 显示当前选择值的 span 元素样式 */
+        .device-card span[style] {
+            margin-right: 10px;
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <!-- <input type="button" id="send-button" value="Send Message" @click="sendClickEvent"> -->
+        <h1>Device Control Panel</h1>
+        <div v-for="(device, deviceId) in deviceStatus" :key="deviceId" class="device-card">
+            <!-- <p>[[device]]  --  [[deviceID]] </p> -->
+            <h3>[[ device.name ]]</h3>
+            <p>Type: [[ device.type ]]</p>
+            <div :id="'status-' + deviceId">
+                <span :class="['status-indicator', device.status.is_working === 'on' ? 'online' : 'offline']"></span>
+                Status: [[ device.status.is_working ]]
+            </div>
+            <button @click="toggleDevice(deviceId,device.status.is_working)">Toggle</button>
+            <!-- servo 角度滑块 -->
+            <div v-if="device.type === 'servo'">
+                <br>
+                <input type="range" min="0" max="180" v-model="device.status.angle">
+                <button @click="setAngle(deviceId, device.status.angle)">Change to :<span>[[
+                        device.status.angle ]]</span></button>
+            </div>
+            <!-- ir_remote 信息 -->
+            <div v-if="device.type === 'ir_remote'">
+                <span>当前模式:  [[ device.status.cmd_status.working_model]]</span>
+                <div class="select-button-group">
+                    <select v-model="de vice.status.cmd_status.working_model">
+                        <option value="制冷">制冷</option>
+                        <option value="制热">制热</option>
+                        <option value="除湿">除湿</option>
+                    </select>
+                    <button @click="setCmdStatus(deviceId,'working_model',device.status.cmd_status.working_model)">确认修改</button>
+                </div>
+                <span>当前空调温度:  [[ device.status.cmd_status.temperature]]°C</span>
+                <div class="select-button-group">
+                    <input type="range" min="16" max="30" v-model="device.status.cmd_status.temperature">
+                    <button @click="setCmdStatus(deviceId,'temperature',device.status.cmd_status.temperature)">调整为：[[ device.status.cmd_status.temperature]]</button>
+                </div>
+                <span>当前吹风模式:  [[ device.status.cmd_status.wind_model]]</span>
+                <div class="select-button-group">
+                    <select v-model="device.status.cmd_status.wind_model">
+                        <option value="自动">自动</option>
+                        <option value="固定">固定</option>
+                        <option value="摇头">摇头</option>
+                    </select>
+                    <button @click="setCmdStatus(deviceId,'wind_model',device.status.cmd_status.wind_model)">确认修改</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        const socket = io();
+
+        const app = createApp({
+            data() {
+                return {
+                    deviceStatus: {},
+                    tempDeviceStatus: {},
+                };
+            },
+            delimiters: ['[[', ']]'],
+            methods: {
+                sendClickEvent() {
+                    socket.emit('click_event', { 'data': 'msg from front' });
+                },
+                toggleDevice(deviceId, is_working) {
+                    const device = this.deviceStatus[deviceId];
+                    const change_working = is_working === 'on' ? 'off' : 'on';
+                    device.status.is_working = change_working
+                    this.sendCommand(deviceId, device.type, 'toggle', change_working);
+                },
+                setAngle(deviceId, angle) {
+                    const device = this.deviceStatus[deviceId];
+                    device.status.angle = angle;
+                    this.sendCommand(deviceId, device.type, 'set_angle', angle);
+                },
+                setCmdStatus(deviceId, cmdType, cmdStatus) {
+                    const device = this.deviceStatus[deviceId];
+                    const send_data = [cmdType,cmdStatus]
+                    this.sendCommand(deviceId, device.type,'set_cmd_status', send_data);
+                    device.status.cmd_status[cmdType] = cmdStatus;
+
+                },
+                sendCommand(deviceId, deviceType, command, params) {
+                    console.log("sendCommand:", deviceId, deviceType, command, params);
+                    fetch("/api/control", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            device_id: deviceId,
+                            device_type: deviceType,
+                            command: command,
+                            params: params
+                        })
+                    }).then(response => {
+                        if (!response.ok) {
+                            console.error("Command failed:", response.status);
+                        }
+                    });
+                },
+                updateDeviceStatus(deviceId, status) {
+                    if (this.deviceStatus[deviceId]) {
+                        Object.assign(this.deviceStatus[deviceId].status, status);
+                    }
+                }
+            },
+            created() {
+                socket.on("my_response", function (data) {
+                    console.log("Received message:", data);
+                });
+
+                socket.on("back_connect", function (data) {
+                    console.log("back_connect:", data);
+                });
+
+                socket.on("connect", function () {
+                    console.log("Connected to server");
+                });
+
+                socket.on("device_init", (data) => {
+                    // console.log(data);
+                    this.deviceStatus = data;
+                    // 初始化临时工作模式对象
+                    // for (const deviceId in this.deviceStatus) {
+                    //         // 前拷贝bug，临时数值共用
+                    //         this.tempDeviceStatus[deviceId] = this.deviceStatus[deviceId];
+                    //         // this.tempDeviceStatus[deviceId] = deepCopy(this.deviceStatus[deviceId]);
+
+                    //         console.log(this.tempDeviceStatus[deviceId]);
+                    // }
+                });
+
+                socket.on("update_device_status", (data) => {
+                    Object.keys(data).forEach(devId => {
+                        this.updateDeviceStatus(devId, data[devId].status);
+                    });
+                }); 
+
+            },
+            
+        });
+        
+        function deepCopy(obj) {
+            console.log("===")
+            // 递归深拷贝
+            if (typeof obj !== 'object' || obj === null) {
+                return obj;
+            }
+            let copy;
+            if (Array.isArray(obj)) {
+                copy = [];
+                for (let i = 0; i < obj.length; i++) {
+                    copy[i] = deepCopy(obj[i]);
+                }
+            } else {
+                copy = {};
+                for (const key in obj) {
+                    if (obj.hasOwnProperty(key)) {
+                        copy[key] = deepCopy(obj[key]);
+                    }
+                }
+            }
+            return copy;
+        }
+
+        app.mount('#app');
+    </script>
+</body>
+
+</html>
