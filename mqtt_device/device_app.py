@@ -1,6 +1,7 @@
 
 import paho.mqtt.client as mqtt
 import json
+import datetime
 
 from config import MQTT_BROKER,MQTT_PORT,MQTT_TOPIC_COMMAND,MQTT_TOPIC_STATUS,USERNAME,PASSWORD
 
@@ -131,12 +132,14 @@ def set_cmd_status(device_id,fun_list):
 
 if __name__ == '__main__':
     # dev_mqtt = mqtt.Client(client_id="py-mqtt-dev")
-    dev_mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "py-mqtt-dev")
+    dev_id = f"py-mqtt-{datetime.datetime.now().strftime('%m%d%H%M')}"
+    dev_mqtt = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=dev_id)
     # dev_mqtt = mqtt.Client()
     dev_mqtt.username_pw_set(username=USERNAME, password=PASSWORD)
     dev_mqtt.on_connect = on_connect
     dev_mqtt.on_disconnect = on_disconnect
     dev_mqtt.on_message = on_message
+    print(">__ mqtt client: <",dev_id,"> Connecting to MQTT broker...")
 
     try:
         dev_mqtt.connect(host=MQTT_BROKER, port=MQTT_PORT, keepalive=60)

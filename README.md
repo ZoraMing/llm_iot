@@ -5,9 +5,10 @@
 创建虚拟环境
 
 ```bash
-# python3.11
-python3.11 -m venv .venv_iot
+# python3.12
+python3.12 -m venv .venv_iot
 pip install -r requirements.txt
+source .venv_iot/bin/activate
 ```
 
 

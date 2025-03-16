@@ -174,4 +174,4 @@ def handle_my_event(json="invalid"):
 
 if __name__ == '__main__':
     # 启动Flask应用
-    socketio.run(app, host='0.0.0.0', port=5001,debug=True)
+    socketio.run(app, host=FLASK_HOST, port=FLASK_PORT,debug=True)
