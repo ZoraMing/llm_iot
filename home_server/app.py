@@ -83,25 +83,25 @@ def on_connect(client,userdata,flags,rc,properties):
 
 def on_message(client,userdata,msg):
     """
-    接收消息时设备状态更新
+        接收消息时设备状态更新
 
-    接收command 格式：{
-        "device_id": {
-            "type": "Device Type",
-            "command": "cmd",
-            "params":["args"]
-        }
-    }
-    返回status格式:{
-        "device_id": {
-            "type": "Device Type",
-            "status": {
-                "status1": "value1",
-                "status2": "value2",
-            ...
+        接收command 格式：{
+            "device_id": {
+                "type": "Device Type",
+                "command": "cmd",
+                "params":["args"]
             }
         }
-    }
+        返回status格式:{
+            "device_id": {
+                "type": "Device Type",
+                "status": {
+                    "status1": "value1",
+                    "status2": "value2",
+                ...
+                }
+            }
+        }
     """
     send_msg ={}
     try:
