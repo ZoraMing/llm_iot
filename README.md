@@ -6,9 +6,9 @@
 
 ```bash
 # python3.12
-python3.12 -m venv .venv_iot
-pip install -r requirements.txt
+python3 -m venv .venv_iot
 source .venv_iot/bin/activate
+pip install -r requirements.txt
 ```
 
 
@@ -29,6 +29,8 @@ mqtt_device/
             __init__.py
             config.py
             device_app.py
+            servo666/
+            ir_remote/
 static/
         img/
             设备流程甘特图.png
