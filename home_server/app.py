@@ -10,7 +10,9 @@ from config import FLASK_HOST,FLASK_PORT,DEVICES,SECRET_KEY
 # Flask应用初始化
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
-socketio = SocketIO(app)
+# socketio = SocketIO(app)
+socketio = SocketIO(app,cors_allowed_origins="*")  # 允许所有来源，或指定具体来源,解决跨域问题
+
 
 device_status = {    
             "living_room_light": {
@@ -19,9 +21,9 @@ device_status = {
                 "status": {
                     "is_working":"on",
                     },
-                "function":{
-                    "toggle": "on_or_off"
-                }
+                # "function":{
+                #     "toggle": "on_or_off"
+                # }
             },
             "servo666": {
                 "name": "Servo Motor",
@@ -30,10 +32,10 @@ device_status = {
                     "is_working": "off",
                     "angle": 0,
                 },
-                "function":{
-                    "toggle": "on_or_off",
-                    "set_angle":"angle"
-                },
+                # "function":{
+                #     "toggle": "on_or_off",
+                #     "set_angle":"angle"
+                # },
             },
             "ir_remote666":{
                 "name": "IR Remote",
@@ -46,14 +48,14 @@ device_status = {
                         "wind_model":"固定",
                     },
                 },
-                "function":{
-                    "toggle": "on_or_off",
-                    "set_cmd_status":{
-                        "working_model":"制冷",
-                        "temperature":"25",
-                        "wind_model":"固定",
-                    }
-                },
+                # "function":{
+                #     "toggle": "on_or_off",
+                #     "set_cmd_status":{
+                #         "working_model":"制冷",
+                #         "temperature":"25",
+                #         "wind_model":"固定",
+                #     }
+                # },
             }
         }
 
@@ -103,24 +105,44 @@ def on_message(client,userdata,msg):
             }
         }
     """
-    send_msg ={}
     try:
-        print(msg.topic,msg.payload,"/n")
-        # 解析消息
-        # cmd_type = msg.topic.split("/")[1]
         device_id = msg.topic.split("/")[2]
         rec_info = json.loads(msg.payload)
-
-        # 更新全局设备状态
-        device_status[device_id]["status"] = rec_info["status"]
-        send_msg[device_id] = rec_info
-        # print("--------------\n",send_msg)
-        socketio.emit('update_device_status', send_msg)
-    except KeyError as e:
-        print("KeyError: " ,msg.topic,msg.payload)
-        print("recive msg from mqtt device error: " + str(e))
+        
+        # 动态注册新设备
+        if device_id not in device_status:
+            device_status[device_id] = {
+                "name": f"Device {device_id}",
+                "type": rec_info.get("type", "unknown"),
+                "status": {},
+                "funtion":{},
+            }
+        
+        # 深度合并状态
+        new_status = rec_info.get("status", {})
+        current_status = device_status[device_id]["status"]
+        
+        # 使用递归合并字典
+        def deep_update(target, src):
+            for k, v in src.items():
+                if isinstance(v, dict):
+                    target[k] = deep_update(target.get(k, {}), v)
+                else:
+                    target[k] = v
+            return target
+        
+        deep_update(current_status, new_status)
+        
+        # 广播状态更新
+        socketio.emit('update_device_status', {
+            device_id: {
+                "type": device_status[device_id]["type"],
+                "status": current_status
+            }
+        })
+        
     except Exception as e:
-        print("on_messgeError: " + str(e))
+        print(f"Error processing message: {str(e)} Raw data: \n{msg.payload}")
 
 def publish(client,device_id,payload,qos=1):
     """
@@ -159,17 +181,23 @@ def control_device():
 @socketio.on('connect')
 def handle_connect():
     print("Client connected")
-    # 推送当前所有设备状态
-    # print("device_status: " + json.dumps(device_status))
-    socketio.emit('device_init', device_status)
+    # 发送完整设备树结构
+    init_data = {
+        dev_id: {
+            "name": dev_info.get("name", f"Device {dev_id}"),
+            "type": dev_info["type"],
+            "status": dev_info["status"]
+        } for dev_id, dev_info in device_status.items()
+    }
+    socketio.emit('device_init', init_data)
 
 # 双向通讯 定义自定义事件处理函数
 # 前->后 后端监听前端事件
-@socketio.on('click_event')
-def handle_my_event(json="invalid"):
-    print('Received json: ' + str(json))
-    # 后->前 向后端发送响应消息
-    socketio.emit('my_response', {'data': 'Server received front message: ', 'json': json})
+# @socketio.on('click_event')
+# def handle_my_event(json="invalid"):
+#     print('Received json: ' + str(json))
+#     # 后->前 向后端发送响应消息
+#     socketio.emit('my_response', {'data': 'Server received front message: ', 'json': json})
 
 
 if __name__ == '__main__':

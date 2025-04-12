@@ -142,11 +142,69 @@
             margin-right: 10px;
             color: #555;
         }
+
+        /* 通知样式 */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 300px;
+        }
+
+        .notification {
+            position: relative;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            color: #1e1e1e;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+            cursor: pointer;
+            transition: 0.3s all;
+        }
+
+        .notification:hover {
+            transform: translateX(-10px);
+        }
+
+        .notification.warning {
+            background: #ffbb33;
+        }
+
+        .notification.info {
+            background: #33b5b5;
+        }
+
+        /* 添加加载动画 */
+        .notification.loading::after {
+            content: "";
+            position: absolute;
+            right: 15px;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #3ca3de;
+            border-top-color: transparent;
+            box-shadow: 10px 5px 5px #666;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
 <body>
     <div id="app" class="app-container">
+        <div class="notification-container">
+            <div v-for="(msg, index) in notifications" 
+                 :key="index"
+                 :class="['notification', msg.type]"
+                 @click="removeNotification(index)">
+                [[ msg.content ]]
+            </div>
+        </div>
         <h1>Device Control Panel</h1>
 
         <!-- 设备列表渲染 -->
@@ -187,8 +245,7 @@
                             <option value="制热">制热</option>
                             <option value="除湿">除湿</option>
                         </select>
-                        <button @click="setCmdStatus(deviceId, 'working_model', 
-                                  device.status.cmd_status.working_model)">
+                        <button @click="setCmdStatus(deviceId)">
                             确认修改
                         </button>
                     </div>
@@ -199,8 +256,7 @@
                     <span>当前温度: [[ device.status.cmd_status.temperature ]]°C</span>
                     <div class="select-button-group">
                         <input type="range" min="16" max="30" v-model="device.status.cmd_status.temperature">
-                        <button @click="setCmdStatus(deviceId, 'temperature', 
-                                  device.status.cmd_status.temperature)">
+                        <button @click="setCmdStatus(deviceId)">
                             调整为: [[ device.status.cmd_status.temperature ]]
                         </button>
                     </div>
@@ -215,8 +271,7 @@
                             <option value="固定">固定</option>
                             <option value="摇头">摇头</option>
                         </select>
-                        <button @click="setCmdStatus(deviceId, 'wind_model', 
-                                  device.status.cmd_status.wind_model)">
+                        <button @click="setCmdStatus(deviceId)">
                             确认修改
                         </button>
                     </div>
@@ -232,61 +287,72 @@
         const app = createApp({
             data() {
                 return {
-                    deviceStatus: {},  // 设备状态存储
-                    tempDeviceStatus: {},  // 备用状态存储（可考虑移除）
+                    deviceStatus: {},   // 设备状态存储
+                    notifications: []   // 通知存储
                 };
             },
             delimiters: ['[[', ']]'],  // 自定义模板分隔符
 
             methods: {
-                /**
-                 * 切换设备开关状态
-                 * @param {string} deviceId - 设备ID
-                 * @param {string} type - 设备类型
-                 * @param {string} currentStatus - 当前状态（on/off）
-                 */
                 toggleDevice(deviceId, type, currentStatus) {
+                    /**
+                     * 切换设备开关状态
+                     * @param {string} deviceId - 设备ID
+                     * @param {string} type - 设备类型
+                     * @param {string} currentStatus - 当前状态（on/off）
+                     */
                     const newStatus = currentStatus === 'on' ? 'off' : 'on';
                     // 确保参数格式为数组
                     this.sendCommand(deviceId, type, 'toggle', [newStatus]);
                 },
 
-                /**
-                 * 设置舵机角度
-                 * @param {string} deviceId - 设备ID
-                 * @param {number} angle - 目标角度（0-180）
-                 */
                 setAngle(deviceId, angle) {
+                    /**
+                     * 设置舵机角度
+                     * @param {string} deviceId - 设备ID
+                     * @param {number} angle - 目标角度（0-180）
+                     */
                     const device = this.deviceStatus[deviceId];
                     // 参数自动封装为数组
                     this.sendCommand(deviceId, device.type, 'set_angle', [angle]);
                 },
 
-                /**
-                 * 设置红外指令状态
-                 * @param {string} deviceId - 设备ID
-                 * @param {string} cmdType - 指令类型
-                 * @param {string} cmdStatus - 指令状态
-                 */
-                setCmdStatus(deviceId, cmdType, cmdStatus) {
+                setCmdStatus(deviceId) {
+                    /**
+                     * 设置红外指令状态
+                     * @param {string} deviceId - 设备ID
+                     * @param {string} cmdType - 指令类型
+                     * @param {string} cmdStatus - 指令状态
+                     */
                     const device = this.deviceStatus[deviceId];
+                    const cmdStatus = device.status.cmd_status;
+        
+                    // 构造参数数组
+                    let params = [];
+                    if (device.type === "ir_remote"){
+                        params = [
+                            ["working_model", cmdStatus.working_model],
+                            ["temperature", Number(cmdStatus.temperature)], // 确保数值类型
+                            ["wind_model", cmdStatus.wind_model]
+                        ];
+                    } 
                     // 参数格式标准化处理
                     this.sendCommand(
                         deviceId,
                         device.type,
                         'set_cmd_status',
-                        [cmdType, cmdStatus]
+                        params
                     );
                 },
 
-                /**
-                 * 发送控制指令到后端
-                 * @param {string} deviceId - 设备ID
-                 * @param {string} deviceType - 设备类型
-                 * @param {string} command - 指令名称
-                 * @param {Array} params - 指令参数数组
-                 */
-                sendCommand(deviceId, deviceType, command, params) {
+                async sendCommand(deviceId, deviceType, command, params) {
+                    /**
+                     * 发送控制指令到后端
+                     * @param {string} deviceId - 设备ID
+                     * @param {string} deviceType - 设备类型
+                     * @param {string} command - 指令名称
+                     * @param {Array} params - 指令参数数组
+                     */
                     console.debug("发送指令:", {
                         deviceId,
                         deviceType,
@@ -294,42 +360,74 @@
                         params
                     });
 
-                    fetch("/api/control", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            device_id: deviceId,
-                            device_type: deviceType,
-                            command: command,
-                            params: Array.isArray(params) ? params : [params] // 参数格式保障
-                        })
-                    })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            return response.json();
-                        })
-                        .catch(error => {
-                            console.error("指令发送失败:", error);
-                            alert("控制指令发送失败，请检查网络连接");
+                    // fetch("/api/control", {
+                    //     method: "POST",
+                    //     headers: { "Content-Type": "application/json" },
+                    //     body: JSON.stringify({
+                    //         device_id: deviceId,
+                    //         device_type: deviceType,
+                    //         command: command,
+                    //         params: Array.isArray(params) ? params : [params] // 参数格式保障
+                    //     })
+                    // })
+                    try {
+                        const response = await fetch("/api/control", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                device_id: deviceId,
+                                device_type: deviceType,
+                                command: command,
+                                params: Array.isArray(params) ? params : [params]
+                            })
                         });
+
+                        const result = await response.json();
+                        
+                            if (!response.ok) {
+                                this.showNotification(`控制失败: ${result.message}`);
+                                return;
+                            }
+                            this.showNotification("指令发送成功", "success");
+                            
+                    } catch (error) {
+                        this.showNotification("网络通信异常，请检查连接","error");
+                    }
                 },
 
-                /**
-                 * 更新设备状态
-                 * @param {string} deviceId - 设备ID
-                 * @param {Object} newStatus - 新状态对象
-                 */
                 updateDeviceStatus(deviceId, newStatus) {
+                    /**
+                     * 更新设备状态
+                     * @param {string} deviceId - 设备ID
+                     * @param {Object} newStatus - 新状态对象
+                     */
                     if (this.deviceStatus[deviceId]) {
                         Object.assign(
                             this.deviceStatus[deviceId].status,
                             newStatus
                         );
                     }
-                }
-            },
+                },
+            
+            
+                // 显示通知（3秒自动消失）
+                showNotification(message, type = 'error') {
+                    const msg = { 
+                        id: Date.now(),
+                        content: message, 
+                        type: type 
+                    };
+                    this.notifications.push(msg);
+                    setTimeout(() => {
+                        this.notifications = this.notifications.filter(m => m.id !== msg.id);
+                    }, 3000);
+                },
+                // 移除通知的方法
+                removeNotification(index) {
+                    this.notifications.splice(index, 1);
+                },
+        },
+        
 
             // 生命周期钩子
             created() {

@@ -7,21 +7,92 @@ from config import MQTT_BROKER,MQTT_PORT,MQTT_TOPIC_COMMAND,MQTT_TOPIC_STATUS,US
 
 
 TOPIC1 = MQTT_TOPIC_COMMAND
-# TOPIC2 = MQTT_TOPIC_STATUS
+
+
+
+DEVICE_META = {
+    "living_room_light": {
+        "name": "Living Room Light",
+        "type": "switch",
+        "function": {
+            "toggle": {
+                "params": "on/off",
+                "description": "开关控制"
+            }
+        }
+    },
+    "servo666": {
+        "name": "Servo Motor",
+        "type": "servo",
+        "function": {
+            "toggle": {
+                "params": ["on/off"],
+                "description": "开关控制"
+            },
+            "set_angle": {
+                "params": 0,
+                "description": "角度设置"
+            }
+        }
+    },
+    "ir_remote666": {
+        "name": "IR Remote",
+        "type": "ir_remote",
+        "function": {
+            "toggle": {
+                "params": "on/off",
+                "description": "开关控制"
+            },
+            "set_cmd_status": {
+                "params": {
+                    "working_model": ["制冷", "制热", "除湿"],
+                    "temperature": [16, 30],
+                    "wind_model": ["自动", "固定", "摇头"]
+                },
+                "description": "状态设置"
+            }
+        }
+    }
+}
+
+def init_device(device_id):
+    meta = DEVICE_META.get(device_id)
+    if not meta:
+        return None
+        
+    base_status = {
+        "name": meta["name"],
+        "type": meta["type"],
+        "status": {
+            "is_working": "off",
+            "angle": 90 if meta["type"] == "servo" else None,
+            "cmd_status": {
+                "working_model": "制冷",
+                "temperature": 25,
+                "wind_model": "固定"
+            } if meta["type"] == "ir_remote" else {}
+        },
+        "function": meta["function"]
+    }
+    return base_status
+
+# 全局设备状态存储
+device_status = {dev_id: init_device(dev_id) for dev_id in DEVICE_META}
 
 def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:
         print("Connected to MQTT Broker Successfully!")
         # 订阅主题
-        topic1 = TOPIC1 + "+"
-        client.subscribe(topic1)
-        print("Subscribed to:", topic1)
-        # topic2 = TOPIC2 + "+"
-        # client.subscribe(topic2)
-        # print("Subscribed to:", topic2)
+        client.subscribe(TOPIC1 + "+")
+        # 连接成功后立即上报状态
+        for dev_id in DEVICE_META:
+            status = {
+                "type": DEVICE_META[dev_id]["type"],
+                "status": device_status[dev_id]
+            }
+            client.publish(MQTT_TOPIC_STATUS + dev_id, json.dumps(status))
     else:
         print(f"Connection failed with error code: {rc}")
-
 
 def on_disconnect(client, userdata,flags, rc, properties):
     print(f"Disconnected from MQTT Broker with code: {rc}")
@@ -30,67 +101,58 @@ def on_disconnect(client, userdata,flags, rc, properties):
 
 def on_message(client, userdata, msg: mqtt.MQTTMessage):
     """
-        接收command 格式：{
-            "device_id": {
-                    "type": "switch",
-                    "command": "toggle",
-                    "params": ["on"],
-            },
-            "device_id": {
-                    "type": "ir_remote",
-                    "command": "set_cmd_status",
-                    "params": [["cmdType1", "cmdStatus1"],
-                            ["cmdType2", "cmdStatus2"]],
-            },
-        }
-        返回status格式:{
-            "device_id": {
-                "type": "Device Type",
-                "status": {
-                    "status1": "value1",
-                    "status2": "value2",
-                ...
-                }
-            }
-        }
+    接受payload样式
+    {'type': 'ir_remote', 'command': 'set_cmd_status', 'params': [['working_model', '除湿'], ['temperature', 27], ['wind_model', '摇头']]}
     """
-    # print(msg.topic + " -- " + str(msg.payload))
     try:
-        print("Received ",msg.topic," command-------------")
-        device_id = msg.topic.split("/")[2]
-        rec_info = json.loads(msg.payload)
-        print(device_id,rec_info)
-
-        command = rec_info["command"]
-        params = rec_info["params"]
-        dev_type = rec_info["type"]
-
-        print(command,params,dev_type)
-        s_msg = {}
+        print(f"Received {msg.topic} command ------------")
+        device_id = msg.topic.split("/")[-1]
+        data = json.loads(msg.payload)
+        
+        # 验证设备存在性
+        if device_id not in device_status:
+            print(f"Unknown device: {device_id}")
+            return
+            
+        # 命令有效性检查
+        command = data.get("command")
+        params = list(data.get("params", []))
+        # print(data,'=== data ===')
+            
+        # 执行命令
+        dev_type = device_status[device_id]["type"]
+        new_status = device_status[device_id]["status"].copy()
+        
         if command == "toggle":
-            # print("Toggle command received")
-            rec_status = toggle(device_id,params)
-            # print("--func:",cmd," with args: ", str(*args))
-            s_msg={"type": "switch", "status": rec_status}
+            new_status["is_working"] = params[0]
+        elif command == "set_angle":
+            new_status.update({
+                "is_working": "on",
+                "angle": int(params[0])
+            })
+        elif command == "set_cmd_status":
+            for param in params:
+                key, value = param[0],param[1]
+                if key == "temperature":
+                    value = int(value)
+                new_status["cmd_status"][key] = value
+            new_status['is_working'] = "on"
         
-        if command == "set_angle":
-            # print("Set angle command received")
-            rec_status = set_angle(device_id,params)
-            # print("--func:",cmd," with args: ", str(*args))
-            s_msg={"type": "servo", "status": rec_status}
-
-        if command == "set_cmd_status":
-            # print("Set cmd status command received")
-            rec_status = set_cmd_status(device_id,params)
-            # print("--func:",cmd," with args: ", str(*args))
-            s_msg={"type": "ir_remote", "status": rec_status}
-        
-
-        client.publish(MQTT_TOPIC_STATUS+device_id, json.dumps(s_msg))
-        print("--------------\n",s_msg)
+        # 更新并发布状态
+        device_status[device_id]["status"] = new_status
+        client.publish(
+            MQTT_TOPIC_STATUS + device_id,
+            json.dumps({
+                "type": dev_type,
+                "status": new_status,
+                "function": device_status[device_id]["function"]
+            })
+        )
+        print(f"Updated status for {device_id}: {new_status}")
 
     except Exception as e:
-        print("Error processing message:", str(e))
+        print(f"Error processing message: {str(e)}")
+
 
 def send_msg(client,topic, msg):
     message = json.dumps(msg)
@@ -99,36 +161,36 @@ def send_msg(client,topic, msg):
 
 
 # 模拟设备工作
-def toggle(device_id,*args):
-    print("Trun ",device_id," statsu = ",args[0])
-    return {"is_working":args[0]}
+def toggle(device_id, params):
+    device = device_status.get(device_id)
+    if device and "toggle" in device["function"]:
+        new_status = device["status"].copy()
+        new_status["is_working"] = params[0]
+        return new_status
+    return None
 
-def set_angle(device_id,*args):
-    print("Set ",device_id," angle = ",args[0])
-    return {"is_working":"on","angle":args[0]}
+def set_angle(device_id, params):
+    device = device_status.get(device_id)
+    if device and "set_angle" in device["function"]:
+        new_status = device["status"].copy()
+        new_status.update({
+            "is_working": "on",
+            "angle": int(params[0])
+        })
+        return new_status
+    return None
 
-def set_cmd_status(device_id,fun_list):
-    s_msg = {
-        "is_working": "on",
-        "cmd_status": {
-
-        },
-    }
-    # for fun in fun_list:
-    command = fun_list[0]
-    args = fun_list[1:]
-    print("\nSet ",device_id," ",command," = ",args[0])
-    if command == "working_model":
-        s_msg["cmd_status"]["working_model"] = args[0] 
-        print("Set ",device_id," working model command ",args[0])
-    elif command == "temperature":
-        s_msg["cmd_status"]["temperature"] = args[0]
-        print("Set ",device_id," temperature command ",args[0])
-    elif command == "wind_model":
-        s_msg["cmd_status"]["wind_model"] = args[0]
-        print("Set ",device_id," wind model command ",args[0])
-
-    return s_msg
+def set_cmd_status(device_id, params):
+    device = device_status.get(device_id)
+    if device and "set_cmd_status" in device["function"]:
+        new_status = device["status"].copy()
+        for param in params:
+            key, value = param
+            if key == "temperature":
+                value = int(value)
+            new_status["cmd_status"][key] = value
+        return new_status
+    return None
 
 if __name__ == '__main__':
     # dev_mqtt = mqtt.Client(client_id="py-mqtt-dev")
