@@ -162,7 +162,7 @@ void callback(char *topic, byte *payload, unsigned int length)
   Serial.println("Command received: " + cmd_type + " : " + String(cmd_value));
   if (cmd_type == "rest")
   {
-
+    // 重置角度为0
     // 立即停止运动
     target_angle = init_angle;
     is_moving = false;
@@ -172,12 +172,19 @@ void callback(char *topic, byte *payload, unsigned int length)
     publish_status();
     return;
   }
+  if (cmd_type == "status")
+  {
+    // 发布当前状态
+    publish_status();
+    return;
+  }
 
   if (cmd_type == "set_angle")
   {
+    // 打印角度
     Serial.println("Set_angle: " + String(cmd_value));
     target_angle = cmd_value;
-
+    publish_status();
     return;
   }
 }
