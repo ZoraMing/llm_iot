@@ -267,9 +267,9 @@
                     <span>当前模式: [[ device.status.cmd_status.wind_model ]]</span>
                     <div class="select-button-group">
                         <select v-model="device.status.cmd_status.wind_model">
-                            <option value="自动">自动</option>
                             <option value="固定">固定</option>
-                            <option value="摇头">摇头</option>
+                            <option value="上下">上下</option>
+                            <option value="左右">左右</option>
                         </select>
                         <button @click="setCmdStatus(deviceId)">
                             确认修改
