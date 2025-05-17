@@ -1,63 +1,39 @@
 # app.py
 import json
+import sqlite3
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO
 import paho.mqtt.client as mqtt
 
 from config import MQTT_BROKER,MQTT_PORT,USERNAME,PASSWORD,MQTT_TOPIC_COMMAND,MQTT_TOPIC_STATUS
-from config import FLASK_HOST,FLASK_PORT,DEVICES,SECRET_KEY
+from config import FLASK_HOST,FLASK_PORT,DEVICES,SECRET_KEY, DB_PATH
+
+from dev_DB.db import init_db, insert_device, update_device_status, get_all_devices, get_device_status  # 导入数据库模块
 
 # Flask应用初始化
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
-# socketio = SocketIO(app)
-socketio = SocketIO(app,cors_allowed_origins="*")  # 允许所有来源，或指定具体来源,解决跨域问题
+socketio = SocketIO(app,cors_allowed_origins="*")
 
 
-device_status = {    
-            "living_room_light": {
-                "name": "Living Room Light",
-                "type": "switch",
-                "status": {
-                    "is_working":"on",
-                    },
-                # "function":{
-                #     "toggle": "on_or_off"
-                # }
-            },
-            "servo666": {
-                "name": "Servo Motor",
-                "type": "servo",
-                "status": {
-                    "is_working": "off",
-                    "angle": 0,
-                },
-                # "function":{
-                #     "toggle": "on_or_off",
-                #     "set_angle":"angle"
-                # },
-            },
-            "ir_remote666":{
-                "name": "IR Remote",
-                "type": "ir_remote",
-                "status": {
-                    "is_working": "off",
-                    "cmd_status": {
-                        "working_model":"制冷",
-                        "temperature":"25",
-                        "wind_model":"固定",
-                    },
-                },
-                # "function":{
-                #     "toggle": "on_or_off",
-                #     "set_cmd_status":{
-                #         "working_model":"制冷",
-                #         "temperature":"25",
-                #         "wind_model":"固定",
-                #     }
-                # },
-            }
+
+# 从数据库中加载设备状态
+device_status = {}
+
+def load_devices_from_db():
+    """从数据库加载设备信息"""
+    global device_status
+    device_info = get_all_devices()
+    for dev_id, dev_data in device_info.items():
+        status = get_device_status(dev_id)
+        device_status[dev_id] = {
+            "name": dev_data["name"],
+            "type": dev_data["type"],
+            "status": status
         }
+    print(device_status,"=====================\n")
+
+
 
 # MQTT基础模块
 def create_mqtt_client():
@@ -110,34 +86,22 @@ def on_message(client,userdata,msg):
         rec_info = json.loads(msg.payload)
         
         # 动态注册新设备
-        if device_id not in device_status:
-            device_status[device_id] = {
-                "name": f"Device {device_id}",
-                "type": rec_info.get("type", "unknown"),
-                "status": {},
-                "funtion":{},
-            }
-        
-        # 深度合并状态
+        # if device_id not in device_status:
+        #     insert_device(device_id, f"Device {device_id}", rec_info.get("type", "unknown"))
+
+        # 更新数据库中的设备状态
         new_status = rec_info.get("status", {})
-        current_status = device_status[device_id]["status"]
-        
-        # 使用递归合并字典
-        def deep_update(target, src):
-            for k, v in src.items():
-                if isinstance(v, dict):
-                    target[k] = deep_update(target.get(k, {}), v)
-                else:
-                    target[k] = v
-            return target
-        
-        deep_update(current_status, new_status)
-        
+        print(new_status,"\n====== new_status ======")
+        update_device_status(device_id, new_status)
+
+        # 更新内存缓存
+        device_status[device_id]["status"] = new_status
+
         # 广播状态更新
         socketio.emit('update_device_status', {
             device_id: {
                 "type": device_status[device_id]["type"],
-                "status": current_status
+                "status": new_status
             }
         })
         
@@ -201,5 +165,9 @@ def handle_connect():
 
 
 if __name__ == '__main__':
+    # 初始化数据库
+    init_db()
+    # 加载初始设备状态
+    load_devices_from_db()
     # 启动Flask应用
     socketio.run(app, host=FLASK_HOST, port=FLASK_PORT,debug=True)

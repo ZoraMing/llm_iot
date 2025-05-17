@@ -24,7 +24,12 @@ home_server/
             config.py
             device_server.py
             tmeplate/
-                    indexVue.html
+                indexVue.html
+            dev_DB/
+                app.db
+                db.py
+                migrate.py
+                dev_DB_create.py
 mqtt_device/
             __init__.py
             config.py
@@ -37,8 +42,9 @@ static/
 
 
 ```
-- 前端    indexVue.html
-- 服务端  home_server.py
-- 设备端  device_server.py
+- 前端          indexVue.html
+- 服务端        home_server.py
+- 设备端        device_server.py
+- mqtt服务器    mosquitto
 
 ![设备流程图](static/img/设备流程甘特图.png)

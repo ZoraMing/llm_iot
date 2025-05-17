@@ -6,6 +6,8 @@ PASSWORD = "123456"
 MQTT_TOPIC_COMMAND = "devices/command/"
 MQTT_TOPIC_STATUS = "devices/status/"
 
+DB_PATH = "dev_DB/app.db"
+
 # Flask配置
 FLASK_HOST = "0.0.0.0"
 FLASK_PORT = 5000
