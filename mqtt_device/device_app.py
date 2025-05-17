@@ -78,6 +78,8 @@ def init_device(device_id):
 
 # 全局设备状态存储
 device_status = {dev_id: init_device(dev_id) for dev_id in DEVICE_META}
+# print(device_status,"\n=====================")
+
 
 def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:
@@ -85,12 +87,13 @@ def on_connect(client, userdata, flags, rc, properties):
         # 订阅主题
         client.subscribe(TOPIC1 + "+")
         # 连接成功后立即上报状态
-        for dev_id in DEVICE_META:
+        for dev_id in device_status:
             status = {
-                "type": DEVICE_META[dev_id]["type"],
+                "type": device_status[dev_id]["type"],
                 "status": device_status[dev_id]
             }
-            client.publish(MQTT_TOPIC_STATUS + dev_id, json.dumps(status))
+            # client.publish(MQTT_TOPIC_STATUS + dev_id, json.dumps(status))
+            # print(status,"\n=====================")
     else:
         print(f"Connection failed with error code: {rc}")
 
@@ -151,7 +154,7 @@ def on_message(client, userdata, msg: mqtt.MQTTMessage):
         print(f"Updated status for {device_id}: {new_status}")
 
     except Exception as e:
-        print(f"Error processing message: {str(e)}")
+        print(f"Error message: {str(e)}")
 
 
 def send_msg(client,topic, msg):

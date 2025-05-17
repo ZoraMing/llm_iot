@@ -8,6 +8,8 @@
 # python3.12
 python3 -m venv .venv_iot
 source .venv_iot/bin/activate
+# windows下启动环境
+.\.venv_iot\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -48,3 +50,8 @@ static/
 - mqtt服务器    mosquitto
 
 ![设备流程图](static/img/设备流程甘特图.png)
+
+参考https://windsurf.com/blog/what-is-an-agent
+
+![](https://exafunction.github.io/public/images/windsurf/agentic-loop.jpg)
+![](https://exafunction.github.io/public/images/windsurf/agentic-vs-non-agentic.jpg)
