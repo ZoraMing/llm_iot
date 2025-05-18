@@ -50,6 +50,14 @@ static/
 - mqtt服务器    mosquitto
 
 ![设备流程图](static/img/设备流程甘特图.png)
+![执行流程图](static/img/2执行流程图.png)
+
+![系统主要模块](static/img/1.1系统主要模块.png)
+
+![home_server主要模块](static/img/1.2home_server主要模块.png)
+![device_app主要模块](static/img/1.3device_app主要模块.png)
+![llm_task主要模块](static/img/1.4llm_task主要模块.png)
+
 
 参考https://windsurf.com/blog/what-is-an-agent
 
