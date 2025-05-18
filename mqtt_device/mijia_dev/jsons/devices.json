@@ -1,0 +1,38 @@
+[
+  {
+    "did": "845728679",
+    "token": "6c1a8551c089dc7eb5983a96fd6ca2fe",
+    "longitude": "0.0",
+    "latitude": "0.0",
+    "name": "米家插座py测试",
+    "pid": "0",
+    "localip": "192.168.1.2",
+    "mac": "E8:4A:54:A4:BE:AC",
+    "ssid": "CMCC-7vps",
+    "bssid": "34:55:94:EE:1E:97",
+    "parent_id": "",
+    "parent_model": "",
+    "show_mode": 1,
+    "model": "cuco.plug.v3",
+    "adminFlag": 1,
+    "shareFlag": 0,
+    "permitLevel": 16,
+    "isOnline": true,
+    "desc": "Device online ",
+    "extra": {
+      "isSetPincode": 0,
+      "pincodeType": 0,
+      "fw_version": "1.1.1",
+      "needVerifyCode": 0,
+      "isPasswordEncrypt": 0,
+      "mcu_version": "0018"
+    },
+    "uid": 3010971582,
+    "pd_id": 7335,
+    "password": "",
+    "p2p_id": "",
+    "rssi": -58,
+    "family_id": 0,
+    "reset_flag": 0
+  }
+]

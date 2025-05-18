@@ -83,7 +83,9 @@ def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:
         print("Connected to MQTT Broker Successfully!")
         # 订阅主题
-        client.subscribe(TOPIC1 + "+")
+        # client.subscribe(TOPIC1 + "+")
+        client.subscribe(TOPIC1 + "servo666")
+        client.subscribe(TOPIC1 + "ir_remote666")
         # 连接成功后立即上报状态
         for dev_id in DEVICE_META:
             status = {
