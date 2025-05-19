@@ -72,7 +72,7 @@ def init_device(device_id):
                 "wind_model": "固定"
             } if meta["type"] == "ir_remote" else {}
         },
-        "function": meta["function"]
+        # "function": meta["function"]
     }
     return base_status
 
@@ -85,9 +85,9 @@ def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:
         print("Connected to MQTT Broker Successfully!")
         # 订阅主题
-        # client.subscribe(TOPIC1 + "+")
-        client.subscribe(TOPIC1 + "servo666")
-        client.subscribe(TOPIC1 + "ir_remote666")
+        client.subscribe(TOPIC1 + "+")
+        # client.subscribe(TOPIC1 + "servo666")
+        # client.subscribe(TOPIC1 + "ir_remote666")
         # 连接成功后立即上报状态
         for dev_id in device_status:
             status = {
@@ -150,11 +150,11 @@ def on_message(client, userdata, msg: mqtt.MQTTMessage):
             json.dumps({
                 "type": dev_type,
                 "status": new_status,
-                "function": device_status[device_id]["function"]
+                # "function": device_status[device_id]["function"]
             })
         )
         print(f"Updated status for {device_id}: {new_status}")
-
+        # print(device_status,"============= device_status ==========")
     except Exception as e:
         print(f"Error message: {str(e)}")
 

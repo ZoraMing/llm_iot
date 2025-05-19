@@ -2,7 +2,7 @@
 import sqlite3
 import json
 import os
-from config import DB_PATH  # 假设在 config.py 中定义了数据库路径
+from config import DB_PATH  
 
 
 from dev_DB.migrate import migrate_data

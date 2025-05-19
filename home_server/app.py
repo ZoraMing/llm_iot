@@ -31,7 +31,6 @@ def load_devices_from_db():
             "type": dev_data["type"],
             "status": status
         }
-    print(device_status,"=====================\n")
 
 
 
@@ -84,14 +83,13 @@ def on_message(client,userdata,msg):
     try:
         device_id = msg.topic.split("/")[2]
         rec_info = json.loads(msg.payload)
-        
+
         # 动态注册新设备
         # if device_id not in device_status:
         #     insert_device(device_id, f"Device {device_id}", rec_info.get("type", "unknown"))
 
         # 更新数据库中的设备状态
         new_status = rec_info.get("status", {})
-        print(new_status,"\n====== new_status ======")
         update_device_status(device_id, new_status)
 
         # 更新内存缓存
@@ -104,6 +102,17 @@ def on_message(client,userdata,msg):
                 "status": new_status
             }
         })
+
+
+        # 广播状态更新
+        # socketio.emit('update_device_status', {
+        #     device_id: {
+        #         "type": device_status[device_id]["type"],
+        #         "status": new_status
+        #     }
+        # })
+
+        # print(new_status,"\n====== new_status ======")
         
     except Exception as e:
         print(f"Error processing message: {str(e)} Raw data: \n{msg.payload}")
@@ -127,6 +136,9 @@ def index():
 @app.route('/api/control', methods=['POST'])
 def control_device():
     data = request.json
+    ai_post = data.get("corrected",None)
+    if ai_post:
+        data = ai_post
     print("POST data: ",data)
     device_id = data.get('device_id')
     device_type = data.get('device_type')
@@ -143,16 +155,19 @@ def control_device():
 
 # WebSocket事件
 @socketio.on('connect')
-def handle_connect():
+def web_socket_connect():
     print("Client connected")
+    load_devices_from_db()
+    print(device_status,"========= device_status  ==========")
     # 发送完整设备树结构
-    init_data = {
-        dev_id: {
+    init_data = {}
+    for dev_id, dev_info in device_status.items():
+        print(dev_id,dev_info,"==== for ===")
+        init_data[dev_id] = {
             "name": dev_info.get("name", f"Device {dev_id}"),
             "type": dev_info["type"],
             "status": dev_info["status"]
-        } for dev_id, dev_info in device_status.items()
-    }
+        }
     socketio.emit('device_init', init_data)
 
 # 双向通讯 定义自定义事件处理函数
@@ -167,7 +182,6 @@ def handle_connect():
 if __name__ == '__main__':
     # 初始化数据库
     init_db()
-    # 加载初始设备状态
-    load_devices_from_db()
+    
     # 启动Flask应用
     socketio.run(app, host=FLASK_HOST, port=FLASK_PORT,debug=True)

@@ -17,30 +17,81 @@ pip install -r requirements.txt
 项目结构：
 
 ```
-README.md
-requirements.txt
-.gitignore
-.venv_iot/..
-home_server/
-            app.py
-            config.py
-            device_server.py
-            tmeplate/
-                indexVue.html
-            dev_DB/
-                app.db
-                db.py
-                migrate.py
-                dev_DB_create.py
-mqtt_device/
-            __init__.py
-            config.py
-            device_app.py
-            servo666/
-            ir_remote/
-static/
-        img/
-            设备流程甘特图.png
+========================================
+├── home_server/
+│   ├── dev_DB/
+│   │   ├── __init__.py
+│   │   ├── app.db
+│   │   ├── db.py
+│   │   ├── dev_DB_create.sql
+│   │   ├── migrate.py
+│   │   └── temp.py
+│   ├── templates/
+│   │   ├── index.html
+│   │   └── indexVue.html
+│   ├── app.py
+│   ├── config.py
+│   ├── device_manger.py
+│   └── tmp_config.py
+├── llm_task/
+│   ├── temp_code/
+│   │   ├── fun_agent.py
+│   │   ├── fun_tools.py
+│   │   ├── llm_getdata.py
+│   │   └── llm_mcp.py
+│   ├── llm_task.py
+│   ├── llm_task_prompts.py
+│   ├── llm_task_tools.py
+│   └── README.md
+├── mqtt_device/
+│   ├── dev_ir_remote/
+│   │   ├── include/
+│   │   │   └── README
+│   │   ├── lib/
+│   │   │   └── README
+│   │   ├── src/
+│   │   │   ├── ir_storage.cpp
+│   │   │   ├── ir_storage.h
+│   │   │   ├── main.cpp
+│   │   │   ├── mqtt_tools.cpp
+│   │   │   └── mqtt_tools.h
+│   │   ├── test/
+│   │   │   ├── README
+│   │   │   ├── sero.cpp
+│   │   │   └── temp.cpp
+│   │   ├── .gitignore
+│   │   └── platformio.ini
+│   ├── mijia_dev/
+│   │   ├── jsons/
+│   │   │   ├── auth.json
+│   │   │   └── devices.json
+│   │   ├── __init__.py
+│   │   ├── device_mi.py
+│   │   ├── mi_plug.py
+│   │   └── mijia_contorl.py
+│   ├── servo666/
+│   │   ├── include/
+│   │   │   └── README
+│   │   ├── lib/
+│   │   │   └── README
+│   │   ├── src/
+│   │   │   ├── main.cpp
+│   │   │   ├── mqtt_tools.cpp
+│   │   │   └── mqtt_tools.h
+│   │   ├── test/
+│   │   │   └── README
+│   │   ├── .gitignore
+│   │   └── platformio.ini
+│   ├── __init__.py
+│   ├── config.py
+│   ├── device_app.py
+│   └── tmp_config.py
+├── static/
+│   └── img/
+├── .gitignore
+├── README.md
+├── requirements.txt
+└── run.py
 
 
 ```
