@@ -162,7 +162,7 @@ def web_socket_connect():
     # 发送完整设备树结构
     init_data = {}
     for dev_id, dev_info in device_status.items():
-        print(dev_id,dev_info,"==== for ===")
+        # print(dev_id,dev_info,"==== for ===")
         init_data[dev_id] = {
             "name": dev_info.get("name", f"Device {dev_id}"),
             "type": dev_info["type"],

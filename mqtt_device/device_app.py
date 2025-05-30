@@ -110,10 +110,10 @@ def on_message(client, userdata, msg: mqtt.MQTTMessage):
     {'type': 'ir_remote', 'command': 'set_cmd_status', 'params': [['working_model', '除湿'], ['temperature', 27], ['wind_model', '摇头']]}
     """
     try:
-        print(f"Received {msg.topic} command ------------")
+        # print(f"Received {msg.topic} command ------------")
         device_id = msg.topic.split("/")[-1]
         data = json.loads(msg.payload)
-        
+        print(f"Received {MQTT_TOPIC_STATUS + device_id} : {data}")
         # 验证设备存在性
         if device_id not in device_status:
             print(f"Unknown device: {device_id}")
@@ -153,7 +153,9 @@ def on_message(client, userdata, msg: mqtt.MQTTMessage):
                 # "function": device_status[device_id]["function"]
             })
         )
-        print(f"Updated status for {device_id}: {new_status}")
+
+        print(f'Return {MQTT_TOPIC_STATUS + device_id} {{"type": {dev_type},"status": {new_status}}}')
+        # print(f"Updated status for {device_id}: {new_status}")
         # print(device_status,"============= device_status ==========")
     except Exception as e:
         print(f"Error message: {str(e)}")

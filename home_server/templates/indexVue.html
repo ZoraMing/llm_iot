@@ -236,6 +236,24 @@
 
             <!-- 红外遥控组件 -->
             <div v-if="device.type === 'ir_remote'">
+                <!-- 红外学习模块 -->
+                <div class="control-group">
+                    <span>学习模式</span>
+                    <div class="select-button-group">
+                        <select v-model="ir_learn_cmd" >
+                            <option value="开机">开机</option>
+                            <option value="制冷">制冷</option>
+                            <option value="制热">制热</option>
+                            <option value="除湿">除湿</option>
+                            <option value="固定">固定</option>
+                            <option value="上下">上下</option>
+                            <option value="左右">左右</option>
+                        </select>
+                        <button @click="ir_learn_mode(deviceId,ir_learn_cmd)">
+                            学习命令
+                        </button>
+                    </div>
+                </div>
                 <!-- 工作模式选择 -->
                 <div class="control-group">
                     <span>当前模式: [[ device.status.cmd_status.working_model ]]</span>
@@ -288,7 +306,8 @@
             data() {
                 return {
                     deviceStatus: {},   // 设备状态存储
-                    notifications: []   // 通知存储
+                    notifications: [],   // 通知存储
+                    ir_learn_cmd : "null",
                 };
             },
             delimiters: ['[[', ']]'],  // 自定义模板分隔符
@@ -343,6 +362,26 @@
                         'set_cmd_status',
                         params
                     );
+                },
+
+                ir_learn_mode(deviceId,ir_learn_cmd){
+                    /**
+                     * 启动红外学习模式
+                     * @param {string} deviceId - 设备ID
+                     * @param {string} ir_learn_cmd - 学习模式名称
+                     */
+                     if (!ir_learn_cmd || ir_learn_cmd === "null") {
+                        this.showNotification("请选择学习模式", "warning");
+                        return;
+                    }
+                    
+                    this.sendCommand(
+                        deviceId,
+                        'ir_remote',
+                        'ir_learn',
+                        [ir_learn_cmd],
+                    );
+                    this.showNotification("正在学习红外信号...", "info");
                 },
 
                 async sendCommand(deviceId, deviceType, command, params) {
