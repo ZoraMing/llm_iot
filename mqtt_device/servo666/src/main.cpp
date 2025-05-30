@@ -104,7 +104,7 @@ void publish_status() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   servo.attach(servo_pin, 500, 2400); // SG90标准脉冲范围
   servo.write(init_angle);
 
@@ -115,6 +115,7 @@ void setup() {
 
   Serial.println("setup complete-----");
 }
+unsigned long lastReconnectAttempt = 0;
 
 void loop() {
 
@@ -123,9 +124,16 @@ void loop() {
     setupWiFi();
   }
 
+  if (!mqttClient.connected()) {
+      if (millis() - lastReconnectAttempt > 5000) { 
+        reconnect();
+        lastReconnectAttempt = millis();
+      }
+    } else {
+      mqttClient.loop(); // 处理MQTT消息
+    }
 
-  if (!mqttClient.connected()) reconnect();
-  mqttClient.loop();          // 处理MQTT消息
   handle_movement();
+  ESP.wdtFeed();
   delay(10);
 }

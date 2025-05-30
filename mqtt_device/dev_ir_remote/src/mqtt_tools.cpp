@@ -13,8 +13,8 @@ const char *mqtt_server = "47.237.21.234";
 const int mqtt_port = 1884;
 const char *mqtt_user = "testuser1";
 const char *mqtt_pass = "zora666";
-const char *topic_cmd = "devices/command/IR_remote";
-const char *topic_status = "devices/status/IR_remote";
+const char *topic_cmd = "devices/command/ir_remote666";
+const char *topic_status = "devices/status/ir_remote666";
 
 
 // MQTT客户端对象
@@ -38,7 +38,7 @@ void setupWiFi() {
   Serial.println("\nWiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-  WiFi.setSleepMode(WIFI_LIGHT_SLEEP);
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
 }
 
 
@@ -50,16 +50,20 @@ void setupMQTT() {
 
 // 重新连接MQTT服务器
 void reconnect() {
+  mqttClient.disconnect();
   while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
     if (mqttClient.connect("IR_remote", mqtt_user, mqtt_pass)) {
-      Serial.println("connected");
       mqttClient.subscribe(topic_cmd);
+      Serial.println("connected");
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
       Serial.println(" retrying in 5 seconds");
       delay(5000);
+      mqttClient.disconnect();
     }
   }
 }
+
+
