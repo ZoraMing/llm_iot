@@ -6,9 +6,9 @@ from flask_socketio import SocketIO
 import paho.mqtt.client as mqtt
 
 from config import MQTT_BROKER,MQTT_PORT,USERNAME,PASSWORD,MQTT_TOPIC_COMMAND,MQTT_TOPIC_STATUS
-from config import FLASK_HOST,FLASK_PORT,DEVICES,SECRET_KEY, DB_PATH
-
-from dev_DB.db import init_db, insert_device, update_device_status, get_all_devices, get_device_status  # 导入数据库模块
+from config import FLASK_HOST,FLASK_PORT,SECRET_KEY
+# 导入数据库模块
+from dev_DB.db import init_db, insert_device, update_device_status, get_all_devices, get_device_status  
 
 # Flask应用初始化
 app = Flask(__name__)

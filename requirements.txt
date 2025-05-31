@@ -3,5 +3,6 @@ Flask==3.1.0
 python-socketio==5.12.1
 Flask-SocketIO==5.5.1
 openai==1.63.2
+aiohttp==3.12.6
 
 mijiaAPI==1.3.12
