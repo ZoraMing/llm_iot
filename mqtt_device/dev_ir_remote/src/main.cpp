@@ -27,7 +27,21 @@ unsigned long lastReconnectAttempt = 0;
 // 函数声明
 void callback(char *topic, byte *payload, unsigned int length);
 void publish_status();
-void parse_set_cmd_status(JsonObject params);
+
+int temperature_value = 25;
+
+
+void fun_temperature() {
+    if (temperature_value == currentStatus.temperature) return;
+    if (temperature_value > currentStatus.temperature) {
+        ir_send("温度加");
+    } 
+    if(temperature_value < currentStatus.temperature) {
+        ir_send("温度减");
+    }
+    delay(100);
+}
+
 
 void callback(char *topic, byte *payload, unsigned int length) {
     // 添加WDT喂狗
@@ -66,7 +80,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
     if(strcmp(cmd_type, "ir_learn") == 0) {
         const char* cmd_value = doc["params"][0];
         if(!cmd_value) {
-            Serial.println("Missing learn value");
+            Serial.println("无学习参数");
             return;
         }
         
@@ -74,9 +88,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
         publish_status();
         
         if(ir_learn(cmd_value)) {
-            Serial.println("Learn successful");
+            Serial.printf("Learn successful: %s \n",cmd_value);
         } else {
-            Serial.println("Learn failed");
+            Serial.printf("Learn failed: %s \n",cmd_value);
         }
         
         learning_mode = false;
@@ -85,80 +99,106 @@ void callback(char *topic, byte *payload, unsigned int length) {
     else if(strcmp(cmd_type, "send") == 0) {
         const char* cmd_value = doc["params"][0];
         if(!cmd_value) {
-            Serial.println("Missing send value");
+            Serial.println("无发送参数");
             return;
         }
         
         if(ir_send(cmd_value)) {
-            Serial.println("Send successful");
+            Serial.printf("Send successful: %s \n",cmd_value);
         } else {
-            Serial.println("Send failed");
+            Serial.printf("Send failed: %s \n",cmd_value);
         }
     }
-    else if(strcmp(cmd_type, "set_cmd_status") == 0) {
+ else if(strcmp(cmd_type, "set_cmd_status") == 0) {
         // 直接处理参数数组 [[key, value], [key, value], ...]
         JsonArray params = doc["params"];
         if(params) {
             // 创建临时对象存储参数
-            JsonDocument tempDoc;
+            // JsonDocument tempDoc;
+            bool statusChanged = false; // 添加状态变化标志
             
             for(JsonVariant item : params) {
                 if(item.is<JsonArray>() && item.size() == 2) {
                     const char* key = item[0];
                     JsonVariant value = item[1];
                     
-                    // 根据键名更新状态
+                    // tempDoc[key] = value;
+                    // 根据键名更新状态，仅在值改变时操作
                     if(strcmp(key, "working_model") == 0 && value.is<const char*>()) {
-                        currentStatus.working_mode = value.as<const char*>();
+                        const char* new_working_mode = value.as<const char*>();
+                        if (strcmp(new_working_mode, currentStatus.working_mode.c_str()) != 0) {
+                            currentStatus.working_mode = new_working_mode;
+                            ir_send(currentStatus.working_mode.c_str());
+                            statusChanged = true;
+                        }
                     }
                     else if(strcmp(key, "temperature") == 0 && value.is<int>()) {
-                        currentStatus.temperature = value.as<int>();
+                        int new_temp = value.as<int>();
+                        if (new_temp != currentStatus.temperature) {
+                            currentStatus.temperature = new_temp;
+                            temperature_value = new_temp;
+                            statusChanged = true;
+                        }
                     }
                     else if(strcmp(key, "wind_model") == 0 && value.is<const char*>()) {
-                        currentStatus.wind_mode = value.as<const char*>();
+                        const char* new_wind_mode = value.as<const char*>();
+                        if (strcmp(new_wind_mode, currentStatus.wind_mode.c_str()) != 0) {
+                            currentStatus.wind_mode = new_wind_mode;
+                            ir_send(currentStatus.wind_mode.c_str());
+                            statusChanged = true;
+                        }
                     }
                 }
             }
             
-            Serial.println("Updated status from set_cmd_status:");
-            Serial.printf(" - Working mode: %s\n", currentStatus.working_mode.c_str());
-            Serial.printf(" - Temperature: %d\n", currentStatus.temperature);
-            Serial.printf(" - Wind mode: %s\n", currentStatus.wind_mode.c_str());
+            // 只有在状态变化时才打印和发布状态
+            if (statusChanged) {
+                Serial.println("更新状态 set_cmd_status:");
+                Serial.printf(" - Working mode: %s\n", currentStatus.working_mode.c_str());
+                Serial.printf(" - Temperature: %d\n", currentStatus.temperature);
+                Serial.printf(" - Wind mode: %s\n", currentStatus.wind_mode.c_str());
+                publish_status();
+            } else {
+                Serial.println("状态未变化，跳过操作");
+            }
         } else {
             Serial.println("Invalid params format for set_cmd_status");
         }
-        publish_status();
     }
     else if(strcmp(cmd_type, "toggle") == 0) {
         // 处理开关命令
         const char* state = doc["params"][0];
         if(state) {
-            currentStatus.is_working = (strcmp(state, "on") == 0);
-            Serial.printf("Toggle command: set is_working to %s\n", currentStatus.is_working ? "on" : "off");
-            publish_status();
+            bool new_state = (strcmp(state, "on") == 0);
+            // 只有当状态变化时才执行操作
+            if (new_state != currentStatus.is_working) {
+                currentStatus.is_working = new_state;
+                ir_send(new_state ? "开机" : "关机"); // 根据状态发送不同命令
+                Serial.printf("Toggle command: set is_working to %s\n", currentStatus.is_working ? "on" : "off");
+                publish_status();
+            } else {
+                Serial.printf("状态未变化，跳过操作: %s\n", state);
+            }
         }
-    }
+    }    
 }
 
 // 发布设备状态（根据您提供的格式优化）
 void publish_status() {
     JsonDocument doc;
     
-    // 设置基本字段
     doc["type"] = "ir_remote";
     
-    // 创建状态对象
-    JsonObject status = doc.createNestedObject("status");
+    // 创建嵌套对象
+    JsonObject status = doc["status"].to<JsonObject>();
     status["is_working"] = currentStatus.is_working ? "on" : "off";
-    status["angle"] = nullptr; // 固定为null
+    status["angle"] = nullptr;
     
-    // 创建命令状态对象
-    JsonObject cmd_status = status.createNestedObject("cmd_status");
+    JsonObject cmd_status = status["cmd_status"].to<JsonObject>();
     cmd_status["working_model"] = currentStatus.working_mode;
     cmd_status["temperature"] = currentStatus.temperature;
     cmd_status["wind_model"] = currentStatus.wind_mode;
     
-    // 序列化并发布
     char buffer[256];
     serializeJson(doc, buffer);
     mqttClient.publish(status_topic, buffer);
@@ -180,16 +220,21 @@ void setup() {
     
     // 初始化存储
     irStorage.begin();
-    
+    // irStorage.formatEEPROM();
+    // Serial.print("格式化EEPROM...");
+
     // 初始化网络
     setupWiFi();
     setupMQTT();
     
     // 配置看门狗和电源管理
+    // ESP.wdtDisable();
     ESP.wdtEnable(15000); // 15秒看门狗
     WiFi.setSleepMode(WIFI_NONE_SLEEP);
     ESP.wdtFeed();
     
+    ir_init(); 
+
     Serial.println("Setup complete");
     irStorage.printAllCommands();
     publish_status(); // 初始状态发布
@@ -217,6 +262,6 @@ void loop() {
     } else {
         mqttClient.loop();
     }
-    
+    fun_temperature();
     delay(10);
 }
