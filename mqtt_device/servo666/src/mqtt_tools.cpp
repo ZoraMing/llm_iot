@@ -30,18 +30,40 @@ void setupWiFi() {
   Serial.println();
   Serial.print("Connecting to: ");
   Serial.println(ssid);
+  // 设置LED引脚为输出模式
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH); // 初始状态为关闭（ESP8266 LED是低电平点亮）
 
   WiFi.begin(ssid, password);
 
+  // 添加连接闪烁（快速闪烁表示正在连接）
+  bool ledState = HIGH;
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
+    
+    // 每500ms切换一次LED状态
+    digitalWrite(LED_BUILTIN, ledState);
+    ledState = !ledState;
   }
 
   Serial.println("\nWiFi connected");
-  Serial.println("IP address: ");
+  Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-  WiFi.setSleepMode(WIFI_LIGHT_SLEEP);
+
+  // 添加连接成功提示（快速闪烁3次）
+  for(int i = 0; i < 3; i++) {
+    digitalWrite(LED_BUILTIN, LOW); // 点亮LED
+    delay(100);
+    digitalWrite(LED_BUILTIN, HIGH); // 关闭LED
+    delay(100);
+  }
+
+  // 连接成功后保持LED关闭
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
 }
 
 
@@ -53,6 +75,7 @@ void setupMQTT() {
 
 // 重新连接MQTT服务器
 void reconnect() {
+  mqttClient.disconnect();
   while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
     if (mqttClient.connect("servo666", mqtt_user, mqtt_pass)) {
@@ -63,6 +86,7 @@ void reconnect() {
       Serial.print(mqttClient.state());
       Serial.println(" retrying in 5 seconds");
       delay(5000);
+      mqttClient.disconnect();
     }
   }
 }

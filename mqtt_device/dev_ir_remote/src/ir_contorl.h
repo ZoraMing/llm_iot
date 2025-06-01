@@ -26,7 +26,9 @@ volatile IRState irState = IR_IDLE;
 volatile uint32_t irStartTime = 0;
 volatile uint32_t irNextEdge = 0;
 volatile uint16_t irDataIndex = 0;
-volatile const IRCommand* currentCmd = nullptr;
+// volatile const IRCommand* currentCmd = nullptr;
+IRCommand currentCmd = {1,"null",0xABCD,0x1234,0,{}};
+
 
 void send_NEC(uint32_t data, uint16_t address);
 void send_SONY(uint32_t data, uint16_t address);
@@ -51,28 +53,28 @@ void ir_send_non_blocking() {
         return;
     }
     
-    if (currentCmd->dataType == 0) { // RAW 数据
-        if (irDataIndex < currentCmd->rawLength) {
-            uint16_t duration = currentCmd->rawData[irDataIndex];
+    if (currentCmd.dataType == 0) { // RAW 数据
+        if (irDataIndex < currentCmd.rawLength) {
+            uint16_t duration = currentCmd.rawData[irDataIndex];
             digitalWrite(SEND_PIN, (irDataIndex % 2 == 0) ? HIGH : LOW);
             irNextEdge = duration;
             irDataIndex++;
             return;
         }
     } 
-    else if (currentCmd->dataType == 1) { // NEC 协议
+    else if (currentCmd.dataType == 1) { // NEC 协议
         // NEC 协议实现 (38kHz载波)
-        send_NEC(currentCmd->dataCode, currentCmd->address);
+        send_NEC(currentCmd.dataCode, currentCmd.address);
         // ... [完整实现见下方] ...
     }
-    else if (currentCmd->dataType == 2) { // SONY 协议
+    else if (currentCmd.dataType == 2) { // SONY 协议
         // SONY 协议实现 (40kHz载波)
-        send_SONY(currentCmd->dataCode, currentCmd->address);
+        send_SONY(currentCmd.dataCode, currentCmd.address);
         // ... [完整实现见下方] ...
     }
-    else if (currentCmd->dataType == 3) { // RC5 协议
+    else if (currentCmd.dataType == 3) { // RC5 协议
         // RC5 协议实现 (36kHz载波)
-        send_RC5(currentCmd->dataCode, currentCmd->address);
+        send_RC5(currentCmd.dataCode, currentCmd.address);
         // ... [完整实现见下方] ...
     }
     
@@ -87,13 +89,14 @@ bool start_ir_send(const char* cmdInfo) {
         Serial.println("红外发送忙，请稍后");
         return false;
     }
-    
-    if (!irStorage.getCommand(cmdInfo, (IRCommand*)&currentCmd)) {
+
+    // IRCommand temp_currentCmd = currentCmd;
+    if (!irStorage.getCommand(cmdInfo, &currentCmd)) {
         Serial.printf("错误：找不到命令 '%s'\n", cmdInfo);
         return false;
     }
     
-    Serial.printf("开始发送: %s, 类型: %d\n", cmdInfo, currentCmd->dataType);
+    Serial.printf("开始发送: %s, 类型: %d, 数据0x%08X\n", cmdInfo, currentCmd.dataType,currentCmd.dataCode);
     
     irState = IR_SENDING;
     irStartTime = micros();
@@ -111,12 +114,16 @@ bool ir_send_complete() {
 // 主发送函数 (非阻塞)
 bool ir_send(const char* cmdInfo) {
     if (start_ir_send(cmdInfo)) {
+        pinMode(LED_BUILTIN, OUTPUT);
         while (!ir_send_complete()) {
+            digitalWrite(LED_BUILTIN, LOW);
             ir_send_non_blocking();
             ESP.wdtFeed();
             delayMicroseconds(10);
+            digitalWrite(LED_BUILTIN, HIGH);
         }
         irState = IR_IDLE;
+        digitalWrite(LED_BUILTIN, HIGH);
         return true;
     }
     return false;

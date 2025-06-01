@@ -23,25 +23,48 @@ struct DeviceStatus {
 // 全局变量
 bool learning_mode = false;
 unsigned long lastReconnectAttempt = 0;
+int target_temperature = 25;
+unsigned long lastAdjustTime = 0;
+bool temperature_adjusted = true; // 标记温度是否已调整完成
 
 // 函数声明
 void callback(char *topic, byte *payload, unsigned int length);
 void publish_status();
+void adjust_temperature();
 
-int temperature_value = 25;
 
-
-void fun_temperature() {
-    if (temperature_value == currentStatus.temperature) return;
-    if (temperature_value > currentStatus.temperature) {
-        ir_send("温度加");
-    } 
-    if(temperature_value < currentStatus.temperature) {
-        ir_send("温度减");
+void adjust_temperature() {
+    // 如果当前温度等于目标温度，且尚未标记为已调整
+    if (currentStatus.temperature == target_temperature) {
+        if (!temperature_adjusted) {
+            Serial.println("温度调整完成，发布状态");
+            publish_status();
+            temperature_adjusted = true; // 标记为已调整
+        }
+        return;
     }
-    delay(100);
-}
+    
+    // 标记需要调整
+    temperature_adjusted = false;
+    
+    unsigned long now = millis();
+    // 每100ms调整一次温度
+    if (now - lastAdjustTime < 100) {
+        return;
+    }
+    lastAdjustTime = now;
 
+    if (target_temperature > currentStatus.temperature) {
+        ir_send("加温");
+        currentStatus.temperature++;
+        Serial.printf("温度调整: +1 -> %d\n", currentStatus.temperature);
+    } 
+    else if (target_temperature < currentStatus.temperature) {
+        ir_send("减温");
+        currentStatus.temperature--;
+        Serial.printf("温度调整: -1 -> %d\n", currentStatus.temperature);
+    }
+}
 
 void callback(char *topic, byte *payload, unsigned int length) {
     // 添加WDT喂狗
@@ -135,8 +158,8 @@ void callback(char *topic, byte *payload, unsigned int length) {
                     else if(strcmp(key, "temperature") == 0 && value.is<int>()) {
                         int new_temp = value.as<int>();
                         if (new_temp != currentStatus.temperature) {
-                            currentStatus.temperature = new_temp;
-                            temperature_value = new_temp;
+                            // currentStatus.temperature = new_temp;
+                            target_temperature = new_temp;
                             statusChanged = true;
                         }
                     }
@@ -173,7 +196,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
             // 只有当状态变化时才执行操作
             if (new_state != currentStatus.is_working) {
                 currentStatus.is_working = new_state;
-                ir_send(new_state ? "开机" : "关机"); // 根据状态发送不同命令
+                ir_send(new_state ? "开机" : "开机"); // 根据状态发送不同命令
                 Serial.printf("Toggle command: set is_working to %s\n", currentStatus.is_working ? "on" : "off");
                 publish_status();
             } else {
@@ -215,6 +238,7 @@ void setup() {
     // 初始化状态
     currentStatus.is_working = false;
     currentStatus.temperature = 25;
+
     currentStatus.working_mode = "制冷";
     currentStatus.wind_mode = "固定";
     
@@ -262,6 +286,6 @@ void loop() {
     } else {
         mqttClient.loop();
     }
-    fun_temperature();
+    adjust_temperature();
     delay(10);
 }

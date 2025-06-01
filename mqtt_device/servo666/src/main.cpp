@@ -53,6 +53,7 @@ void handle_movement() {
     servo.write(current_angle);
 
     if (current_angle == target_angle) {
+       is_moving = false;
       publish_status();
     }
   }
